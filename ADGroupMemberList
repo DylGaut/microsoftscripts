@@ -1,0 +1,52 @@
+# Import the Active Directory module
+Import-Module ActiveDirectory
+
+# Prompt the user to enter the group name
+$groupName = Read-Host -Prompt 'Enter the group name'
+
+# Try to get the group
+$group = Get-ADGroup -Filter { Name -eq $groupName } -ErrorAction SilentlyContinue
+
+if ($group) {
+    # Get members of the group
+    $members = Get-ADGroupMember -Identity $group.DistinguishedName -Recursive
+
+    # Prompt to decide if output should be saved to a file
+    $saveToFile = Read-Host -Prompt 'Do you want to save the output to a text file? (Y/N)'
+
+    # Set output variable
+    $output = "Group: $($group.Name)`n"
+
+    # Collect member details
+    foreach ($member in $members) {
+        # Retrieve additional properties for each member
+        $memberDetails = Get-ADUser -Identity $member.DistinguishedName -Properties DisplayName -ErrorAction SilentlyContinue
+        
+        if ($memberDetails) {
+            $output += "  Member: $($memberDetails.DisplayName)`n"
+        } else {
+            $output += "  Member: $($member.SamAccountName) (Details not found)`n"
+        }
+    }
+
+    if ($saveToFile -eq 'Y') {
+        # Default path to desktop
+        $desktopPath = [System.IO.Path]::Combine([System.Environment]::GetFolderPath('Desktop'), 'GroupMembersOutput.txt')
+        
+        # Prompt for file path if desired
+        $filePath = Read-Host -Prompt "Enter the full path for the text file or press Enter to use the default path ($desktopPath)"
+        if ([string]::IsNullOrWhiteSpace($filePath)) {
+            $filePath = $desktopPath
+        }
+        
+        # Save the output to the file
+        $output | Out-File -FilePath $filePath
+        Write-Output "Output saved to $filePath"
+    } else {
+        # Display output to the console
+        Write-Output $output
+    }
+} else {
+    # If the group does not exist
+    Write-Output "Group not found"
+}
